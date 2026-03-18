@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>儿童识字小报生成器</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+      background: linear-gradient(135deg, #fff8e7 0%, #ffefd5 100%);
+      min-height: 100vh;
+      padding: 24px 16px;
+      color: #333;
+    }
+
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    /* ── Header ── */
+    .header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .header h1 {
+      font-size: 2rem;
+      color: #e85d04;
+      text-shadow: 2px 2px 0 #ffd166;
+      letter-spacing: 2px;
+    }
+    .header p {
+      margin-top: 6px;
+      color: #888;
+      font-size: 0.9rem;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    }
+    .card-title {
+      font-size: 1rem;
+      font-weight: bold;
+      color: #555;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-title .icon {
+      font-size: 1.2rem;
+    }
+
+    /* ── Form Fields ── */
+    .field {
+      margin-bottom: 16px;
+    }
+    .field label {
+      display: block;
+      font-size: 0.85rem;
+      color: #666;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+    .field input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 2px solid #e8e8e8;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+      font-family: inherit;
+    }
+    .field input:focus {
+      border-color: #ff9f43;
+    }
+    .field input[type="password"] {
+      letter-spacing: 2px;
+    }
+    .field .hint {
+      font-size: 0.78rem;
+      color: #aaa;
+      margin-top: 4px;
+    }
+
+    /* ── Toggle for API config ── */
+    .toggle-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 0.82rem;
+      color: #aaa;
+      text-decoration: underline;
+      padding: 0;
+      margin-bottom: 16px;
+      font-family: inherit;
+    }
+    .toggle-btn:hover { color: #888; }
+
+    /* ── Main Generate Button ── */
+    .btn-generate {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #ff9f43, #e85d04);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      cursor: pointer;
+      letter-spacing: 2px;
+      transition: opacity 0.2s, transform 0.1s;
+      font-family: inherit;
+    }
+    .btn-generate:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+    .btn-generate:active:not(:disabled) { transform: translateY(0); }
+    .btn-generate:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── Progress Steps ── */
+    .steps {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .step {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 14px 8px;
+      border-radius: 12px;
+      background: #f5f5f5;
+      font-size: 0.82rem;
+      color: #aaa;
+      text-align: center;
+      transition: all 0.3s;
+    }
+    .step .step-icon { font-size: 1.5rem; }
+    .step.active {
+      background: #fff8e7;
+      color: #e85d04;
+      border: 2px solid #ff9f43;
+    }
+    .step.done {
+      background: #f0fff4;
+      color: #27ae60;
+      border: 2px solid #2ecc71;
+    }
+    .step.error {
+      background: #fff5f5;
+      color: #e74c3c;
+      border: 2px solid #e74c3c;
+    }
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #ff9f43;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Status Message ── */
+    .status-msg {
+      text-align: center;
+      font-size: 0.88rem;
+      color: #888;
+      min-height: 20px;
+      margin-bottom: 16px;
+    }
+
+    /* ── Error Banner ── */
+    .error-banner {
+      background: #fff5f5;
+      border: 1px solid #f5c6cb;
+      border-radius: 10px;
+      padding: 12px 16px;
+      color: #c0392b;
+      font-size: 0.88rem;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    /* ── Result ── */
+    .result-img-wrap {
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    .result-img-wrap img {
+      max-width: 100%;
+      border-radius: 12px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.15);
+    }
+
+    .btn-download {
+      display: inline-block;
+      padding: 10px 28px;
+      background: #27ae60;
+      color: #fff;
+      border-radius: 10px;
+      text-decoration: none;
+      font-weight: bold;
+      font-size: 0.95rem;
+      transition: opacity 0.2s;
+    }
+    .btn-download:hover { opacity: 0.85; }
+
+    /* ── Collapsible Prompt ── */
+    .collapsible-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+    }
+    .collapsible-header .arrow {
+      font-size: 0.8rem;
+      transition: transform 0.2s;
+      color: #aaa;
+    }
+    .collapsible-header.open .arrow { transform: rotate(180deg); }
+    .collapsible-body {
+      display: none;
+      margin-top: 12px;
+    }
+    .collapsible-body.open { display: block; }
+    .prompt-text {
+      background: #f8f8f8;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 0.82rem;
+      color: #555;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 280px;
+      overflow-y: auto;
+      line-height: 1.6;
+    }
+
+    /* ── Hidden ── */
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <h1>📰 儿童识字小报生成器</h1>
+    <p>输入主题与标题，自动生成卡通识字小报图片</p>
+  </div>
+
+  <!-- API 配置 -->
+  <div class="card" id="apiCard">
+    <div class="card-title"><span class="icon">🔑</span> API 配置</div>
+    <div class="field">
+      <label>Kie.ai API Key</label>
+      <input type="password" id="kieKey" placeholder="输入你的 API Key..." autocomplete="off" />
+      <div class="hint">用于 Nano Banana Pro 绘图 · <a href="https://kie.ai/api-key" target="_blank">获取 Key</a></div>
+    </div>
+  </div>
+
+  <!-- 输入区 -->
+  <div class="card">
+    <div class="card-title"><span class="icon">✏️</span> 小报信息</div>
+    <div class="field">
+      <label>主题 / 场景</label>
+      <input type="text" id="inputTheme" placeholder="例如：超市、医院、公园、动物园..." maxlength="50" />
+    </div>
+    <div class="field">
+      <label>大标题</label>
+      <input type="text" id="inputTitle" placeholder="例如：走进超市、快乐医院..." maxlength="30" />
+    </div>
+    <button class="btn-generate" id="btnGenerate" onclick="startGenerate().catch(e => { showError('未知错误：' + e.message); $('btnGenerate').disabled = false; console.error(e); })">🎨 开始生成</button>
+  </div>
+
+  <!-- 错误提示（独立放置，始终可见） -->
+  <div class="error-banner" id="errorBanner"></div>
+
+  <!-- 进度区 -->
+  <div id="progressSection" class="hidden">
+    <div class="steps">
+      <div class="step" id="step1">
+        <div class="step-icon" id="step1Icon">🎨</div>
+        <div>AI 绘制图片</div>
+      </div>
+    </div>
+    <div class="status-msg" id="statusMsg">准备中...</div>
+  </div>
+
+  <!-- 结果区 -->
+  <div class="card hidden" id="resultCard">
+    <div class="card-title"><span class="icon">🖼️</span> 生成结果</div>
+    <div class="result-img-wrap">
+      <img id="resultImg" src="" alt="识字小报" />
+    </div>
+    <div style="text-align:center; margin-bottom: 16px;">
+      <a class="btn-download" id="btnDownload" href="#" download="识字小报.png">⬇️ 下载图片</a>
+    </div>
+    <!-- 提示词折叠 -->
+    <div>
+      <div class="collapsible-header" id="promptToggle" onclick="togglePrompt()">
+        <span style="font-size:0.88rem; color:#aaa;">查看生成的提示词</span>
+        <span class="arrow" id="promptArrow">▼</span>
+      </div>
+      <div class="collapsible-body" id="promptBody">
+        <div class="prompt-text" id="promptDisplay"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── 本地构建图片提示词（无需 Claude API）──
+function buildPrompt(theme, title) {
+  return `请生成一张儿童识字小报，竖版 A4，学习小报版式，适合 5–9 岁孩子认字与看图识物。
+
+顶部居中大标题：《${title}》
+风格：十字小报 / 儿童学习报感，大字、醒目、卡通手写体、彩色描边
+标题装饰：周围添加与「${theme}」相关的贴纸风装饰，颜色鲜艳
+
+画面中心是一幅卡通插画风的「${theme}」场景：
+- 整体气氛：明亮、温暖、积极
+- 构图：物体边界清晰，方便对应文字标签，不要过于拥挤
+- 包含与「${theme}」相关的 15–20 个典型物品、人物、设施，分布在画面各处
+- 每个物品旁贴上识字标签，标签格式：两行制（第一行拼音带声调，第二行简体汉字）
+- 标签样式：彩色小贴纸风格，白底黑字，清晰可读，靠近对应物体不遮挡主体
+- 画面中有 1 位与「${theme}」场景匹配的可爱卡通人物，正在进行自然互动动作
+
+画风参数：
+- 风格：儿童绘本风 + 识字小报风
+- 色彩：高饱和、明快、温暖（High Saturation, Warm Tone）
+- 质量：8K resolution, high detail, vector illustration style, clean lines`;
+}
+
+// ── 工具函数 ──
+function $(id) { return document.getElementById(id); }
+function saveKeys() {
+  const kk = $('kieKey').value.trim();
+  if (kk) localStorage.setItem('kie_key', kk);
+}
+function loadKeys() {
+  $('kieKey').value = localStorage.getItem('kie_key') || '';
+}
+
+function setStep(state) {
+  const step = $('step1');
+  const icon = $('step1Icon');
+  step.className = 'step';
+  if (state === 'active') {
+    step.classList.add('active');
+    icon.innerHTML = '<div class="spinner"></div>';
+  } else if (state === 'done') {
+    step.classList.add('done');
+    icon.textContent = '✅';
+  } else if (state === 'error') {
+    step.classList.add('error');
+    icon.textContent = '❌';
+  } else {
+    icon.textContent = '🎨';
+  }
+}
+
+function setStatus(msg) { $('statusMsg').textContent = msg; }
+
+function showError(msg) {
+  const el = $('errorBanner');
+  el.innerHTML = '⚠️ ' + msg;
+  el.style.display = 'block';
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  console.error('[识字小报]', msg);
+}
+
+function clearError() {
+  const el = $('errorBanner');
+  el.style.display = 'none';
+  el.innerHTML = '';
+}
+
+function togglePrompt() {
+  const body = $('promptBody');
+  const header = $('promptToggle');
+  const arrow = $('promptArrow');
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  header.classList.toggle('open', !isOpen);
+  arrow.textContent = isOpen ? '▼' : '▲';
+}
+
+// ── 主流程 ──
+async function startGenerate() {
+  saveKeys();
+  clearError();
+
+  const kieKey = $('kieKey').value.trim();
+  const theme = $('inputTheme').value.trim();
+  const title = $('inputTitle').value.trim();
+
+  if (!kieKey) { showError('请填写 Kie.ai API Key'); return; }
+  if (!theme) { showError('请填写主题/场景'); return; }
+  if (!title) { showError('请填写小报标题'); return; }
+
+  // 本地构建提示词
+  const imagePrompt = buildPrompt(theme, title);
+
+  // 显示进度区，隐藏结果区
+  $('progressSection').classList.remove('hidden');
+  $('resultCard').classList.add('hidden');
+  $('btnGenerate').disabled = true;
+  $('btnGenerate').textContent = '⏳ 生成中...';
+  setStep('active');
+  setStatus('正在提交绘图任务...');
+
+  try {
+    const taskId = await createImageTask(kieKey, imagePrompt);
+    setStatus('绘图任务已提交，等待 AI 绘制中...');
+    const imageUrl = await pollTaskResult(kieKey, taskId);
+    setStep('done');
+    setStatus('✅ 生成完成！');
+    showResult(imageUrl, imagePrompt);
+  } catch (e) {
+    setStep('error');
+    const hint = e.message.includes('Failed to fetch')
+      ? 'Kie.ai 请求失败（网络问题或 CORS 拦截），请检查网络连接'
+      : '绘图失败：' + e.message;
+    showError(hint);
+  }
+
+  resetBtn();
+}
+
+function resetBtn() {
+  $('btnGenerate').disabled = false;
+  $('btnGenerate').textContent = '🎨 开始生成';
+}
+
+// ── Nano Banana Pro: 创建任务 ──
+async function createImageTask(apiKey, prompt) {
+  const resp = await fetch('https://api.kie.ai/api/v1/jobs/createTask', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + apiKey,
+    },
+    body: JSON.stringify({
+      model: 'nano-banana-pro',
+      input: {
+        prompt: prompt,
+        image_input: [],
+        aspect_ratio: '3:4',
+        resolution: '2K',
+        output_format: 'png',
+      },
+    }),
+  });
+
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.msg || `HTTP ${resp.status}`);
+  }
+
+  const data = await resp.json();
+  if (data.code !== 200) throw new Error(data.msg || '创建任务失败');
+  return data.data.taskId;
+}
+
+// ── Nano Banana Pro: 轮询结果 ──
+async function pollTaskResult(apiKey, taskId) {
+  const MAX_WAIT = 5 * 60 * 1000; // 最长等 5 分钟
+  const INTERVAL = 4000;
+  const start = Date.now();
+  let attempt = 0;
+
+  while (Date.now() - start < MAX_WAIT) {
+    await sleep(INTERVAL);
+    attempt++;
+    setStatus(`AI 绘制中，已等待 ${Math.round((Date.now() - start) / 1000)} 秒...`);
+
+    const resp = await fetch(
+      `https://api.kie.ai/api/v1/jobs/recordInfo?taskId=${taskId}`,
+      { headers: { 'Authorization': 'Bearer ' + apiKey } }
+    );
+
+    if (!resp.ok) continue;
+    const data = await resp.json();
+    if (data.code !== 200) continue;
+
+    const state = data.data?.state;
+    if (state === 'success') {
+      const resultJson = JSON.parse(data.data.resultJson || '{}');
+      const url = resultJson.resultUrls?.[0];
+      if (!url) throw new Error('未获取到图片地址');
+      return url;
+    }
+    if (state === 'fail') {
+      throw new Error(data.data.failMsg || '绘图任务失败');
+    }
+    // state === 'waiting' 继续等待
+  }
+
+  throw new Error('等待超时，请稍后重试');
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ── 展示结果 ──
+function showResult(imageUrl, prompt) {
+  $('resultImg').src = imageUrl;
+  $('btnDownload').href = imageUrl;
+  $('promptDisplay').textContent = prompt;
+  $('resultCard').classList.remove('hidden');
+  $('resultCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ── 初始化 ──
+loadKeys();
+</script>
+</body>
+</html>
